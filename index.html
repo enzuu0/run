@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Sprint: Retro Pulse</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div id="score">Score: 0</div>
+            <div id="start-screen" class="overlay">
+                <h1>SHADOW SPRINT</h1>
+                <p>Retro Pulse</p>
+                <button id="start-btn">START</button>
+            </div>
+            <div id="countdown" class="overlay hidden"></div>
+            <div id="victory-screen" class="overlay hidden">
+                <h1>VITÓRIA!</h1>
+                <p>Obrigado por jogar!</p>
+                <button onclick="location.reload()">REPLAY</button>
+            </div>
+            <div id="game-over-screen" class="overlay hidden">
+                <h1>GAME OVER</h1>
+                <button onclick="location.reload()">TENTAR NOVAMENTE</button>
+            </div>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>
