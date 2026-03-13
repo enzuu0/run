@@ -1,6 +1,7 @@
 /**
  * Shadow Sprint: Retro Pulse
  * A 16-bit style parkour runner.
+ * IMPROVED VERSION: Better visuals and robust drawing.
  */
 
 const canvas = document.getElementById('gameCanvas');
@@ -13,29 +14,23 @@ canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
 
 const GRAVITY = 0.8;
-const JUMP_FORCE = -15;
+const JUMP_FORCE = -14;
 const GROUND_Y = CANVAS_HEIGHT - 60;
-const INITIAL_SPEED = 5;
-const SPEED_INCREMENT = 0.001;
+const INITIAL_SPEED = 6;
+const SPEED_INCREMENT = 0.0005;
 
 // Game State
-let gameState = 'START'; // START, COUNTDOWN, PLAYING, GAMEOVER, VICTORY
+let gameState = 'START';
 let score = 0;
-let distance = 0;
 let lastTime = 0;
 let speed = INITIAL_SPEED;
 let scoreTimer = 0;
 
-// Assets
+// Assets (Keep them for background if they load, but use code-based fallback for objects)
 const assets = {
-    hero: new Image(),
-    background: new Image(),
-    tileset: new Image()
+    background: new Image()
 };
-
-assets.hero.src = 'assets/images/hero.png';
 assets.background.src = 'assets/images/background.png';
-assets.tileset.src = 'assets/images/tileset.png';
 
 // UI Elements
 const ui = {
@@ -55,26 +50,23 @@ class Player {
 
     reset() {
         this.x = 100;
-        this.y = GROUND_Y - 40;
-        this.width = 40;
-        this.height = 40;
+        this.y = GROUND_Y - 50;
+        this.width = 30;
+        this.height = 50;
         this.vy = 0;
         this.isGrounded = false;
         this.jumpCount = 0;
         this.maxJumps = 2;
-        this.frame = 0;
-        this.frameTimer = 0;
-        this.frameInterval = 100; // ms
+        this.animFrame = 0;
+        this.animTimer = 0;
     }
 
     update(deltaTime) {
-        // Gravity
         if (!this.isGrounded) {
             this.vy += GRAVITY;
         }
         this.y += this.vy;
 
-        // Ground collision
         if (this.y + this.height > GROUND_Y) {
             this.y = GROUND_Y - this.height;
             this.vy = 0;
@@ -84,11 +76,15 @@ class Player {
             this.isGrounded = false;
         }
 
-        // Animation
-        this.frameTimer += deltaTime;
-        if (this.frameTimer > this.frameInterval) {
-            this.frame = (this.frame + 1) % 4; // Assuming 4 frames
-            this.frameTimer = 0;
+        // Animation logic
+        this.animTimer += deltaTime;
+        if (this.isGrounded) {
+            if (this.animTimer > 100) {
+                this.animFrame = (this.animFrame + 1) % 4;
+                this.animTimer = 0;
+            }
+        } else {
+            this.animFrame = 4; // Jump frame
         }
     }
 
@@ -101,58 +97,58 @@ class Player {
     }
 
     draw() {
-        ctx.fillStyle = '#000'; // Fallback
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Draw Stylized Shadow Ninja
+        ctx.fillStyle = '#111'; // Dark black
         
-        // Draw Shadow Figure
-        // If image is loaded, draw it. Otherwise draw a rect.
-        if (assets.hero.complete) {
-            // Draw a section of the sprite sheet
-            // Assuming the sprite sheet has frames horizontally
-            const frameWidth = assets.hero.width / 4; 
-            const frameHeight = assets.hero.height;
-            
-            ctx.drawImage(
-                assets.hero,
-                this.frame * frameWidth, 0, frameWidth, frameHeight,
-                this.x, this.y, this.width, this.height
-            );
+        // Head
+        ctx.fillRect(8, 0, 14, 14);
+        // Eyes (Glow)
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(16, 4, 4, 2);
+        
+        ctx.fillStyle = '#111';
+        // Torso
+        ctx.fillRect(6, 14, 18, 20);
+        
+        // Legs (Leaning based on frame)
+        if (this.isGrounded) {
+            if (this.animFrame % 2 === 0) {
+                ctx.fillRect(6, 34, 8, 16); // Left leg
+                ctx.fillRect(16, 34, 8, 12); // Right leg
+            } else {
+                ctx.fillRect(6, 34, 8, 12);
+                ctx.fillRect(16, 34, 8, 16);
+            }
         } else {
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Jump pose
+            ctx.fillRect(2, 34, 10, 10);
+            ctx.fillRect(18, 30, 10, 10);
         }
-    }
-}
-
-// Background Layer Class
-class Background {
-    constructor(image, speedModifier) {
-        this.image = image;
-        this.speedModifier = speedModifier;
-        this.x = 0;
-    }
-
-    update() {
-        this.x -= speed * this.speedModifier;
-        if (this.x <= -CANVAS_WIDTH) {
-            this.x = 0;
-        }
-    }
-
-    draw() {
-        if (this.image.complete) {
-            ctx.drawImage(this.image, this.x, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            ctx.drawImage(this.image, this.x + CANVAS_WIDTH, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        }
+        
+        // Scarf (Red accent for "Hero" feel)
+        ctx.fillStyle = '#aa0000';
+        ctx.fillRect(0, 16, 12, 4);
+        
+        ctx.restore();
     }
 }
 
 // Obstacle Class
 class Obstacle {
     constructor() {
-        this.x = CANVAS_WIDTH + Math.random() * 500;
-        this.width = 40 + Math.random() * 20;
-        this.height = 40 + Math.random() * 40;
+        this.x = CANVAS_WIDTH + 100;
+        this.type = Math.random() > 0.4 ? 'box' : 'spike';
+        if (this.type === 'box') {
+            this.width = 40;
+            this.height = 40;
+        } else {
+            this.width = 50;
+            this.height = 30;
+        }
         this.y = GROUND_Y - this.height;
-        this.type = Math.random() > 0.5 ? 'box' : 'spike';
     }
 
     update() {
@@ -160,31 +156,102 @@ class Obstacle {
     }
 
     draw() {
-        if (assets.tileset.complete) {
-            // Use tileset if available
-            ctx.drawImage(assets.tileset, 0, 0, 32, 32, this.x, this.y, this.width, this.height);
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        if (this.type === 'box') {
+            // Stylized Wood Crate
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.strokeStyle = '#3e2723';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(2, 2, this.width - 4, this.height - 4);
+            // X on the box
+            ctx.beginPath();
+            ctx.moveTo(8, 8); ctx.lineTo(this.width - 8, this.height - 8);
+            ctx.moveTo(this.width - 8, 8); ctx.lineTo(8, this.height - 8);
+            ctx.stroke();
         } else {
-            ctx.fillStyle = this.type === 'spike' ? '#f00' : '#8B4513';
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Stylized Spikes
+            ctx.fillStyle = '#757575';
+            ctx.beginPath();
+            ctx.moveTo(0, this.height);
+            ctx.lineTo(this.width / 4, 0);
+            ctx.lineTo(this.width / 2, this.height);
+            ctx.lineTo(3 * this.width / 4, 0);
+            ctx.lineTo(this.width, this.height);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#212121';
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+}
+
+// Background & Ground
+class Scene {
+    constructor() {
+        this.bgX = 0;
+        this.stars = Array.from({length: 20}, () => ({
+            x: Math.random() * CANVAS_WIDTH,
+            y: Math.random() * 200,
+            size: Math.random() * 2 + 1
+        }));
+    }
+
+    update() {
+        this.bgX -= speed * 0.5;
+        if (this.bgX <= -CANVAS_WIDTH) this.bgX = 0;
+    }
+
+    draw() {
+        // Sky Gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+        gradient.addColorStop(0, '#0d47a1');
+        gradient.addColorStop(1, '#42a5f5');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, GROUND_Y);
+
+        // Draw Image Background if loaded
+        if (assets.background.complete && assets.background.naturalWidth !== 0) {
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(assets.background, this.bgX, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.drawImage(assets.background, this.bgX + CANVAS_WIDTH, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.globalAlpha = 1.0;
+        }
+
+        // Tiled Ground
+        ctx.fillStyle = '#388e3c'; // Grass top
+        ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, 10);
+        ctx.fillStyle = '#5d4037'; // Dirt bottom
+        ctx.fillRect(0, GROUND_Y + 10, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y - 10);
+        
+        // Ground Detail (stitching/dots)
+        ctx.fillStyle = '#4e342e';
+        for (let i = 0; i < CANVAS_WIDTH; i += 40) {
+            ctx.fillRect(i + (Math.abs(this.bgX * 2) % 40), GROUND_Y + 20, 4, 4);
+            ctx.fillRect(i + 20 + (Math.abs(this.bgX * 2) % 40), GROUND_Y + 40, 4, 4);
         }
     }
 }
 
 // Game Instances
 const player = new Player();
-const bgLayer = new Background(assets.background, 0.5);
+const scene = new Scene();
 let obstacles = [];
 
-// Functions
-function spawnObstacle() {
-    obstacles.push(new Obstacle());
+function checkCollision(p, o) {
+    const hitboxPadding = 5;
+    return p.x + hitboxPadding < o.x + o.width - hitboxPadding &&
+           p.x + p.width - hitboxPadding > o.x + hitboxPadding &&
+           p.y + hitboxPadding < o.y + o.height - hitboxPadding &&
+           p.y + p.height - hitboxPadding > o.y + hitboxPadding;
 }
 
-function checkCollision(p, o) {
-    return p.x < o.x + o.width &&
-           p.x + p.width > o.x &&
-           p.y < o.y + o.height &&
-           p.y + p.height > o.y;
+function spawnObstacle() {
+    obstacles.push(new Obstacle());
 }
 
 function startGame() {
@@ -213,10 +280,10 @@ function resetGame() {
     player.reset();
     obstacles = [];
     score = 0;
-    distance = 0;
     speed = INITIAL_SPEED;
     scoreTimer = 0;
     lastTime = performance.now();
+    ui.score.innerText = `Score: 0`;
     requestAnimationFrame(gameLoop);
 }
 
@@ -230,20 +297,6 @@ function victory() {
     ui.victoryScreen.classList.remove('hidden');
 }
 
-function updateScore(deltaTime) {
-    scoreTimer += deltaTime;
-    if (scoreTimer >= 10000) { // 10 seconds
-        score += 50;
-        scoreTimer = 0;
-        ui.score.innerText = `Score: ${score}`;
-    }
-
-    if (score >= 50000) {
-        victory();
-    }
-}
-
-// Main Game Loop
 function gameLoop(time) {
     if (gameState !== 'PLAYING') return;
 
@@ -254,12 +307,20 @@ function gameLoop(time) {
 
     // Update
     speed += SPEED_INCREMENT;
-    bgLayer.update();
+    scene.update();
     player.update(deltaTime);
-    updateScore(deltaTime);
+    
+    // Score logic
+    scoreTimer += deltaTime;
+    if (scoreTimer >= 10000) {
+        score += 50;
+        scoreTimer = 0;
+        ui.score.innerText = `Score: ${score}`;
+        if (score >= 50000) victory();
+    }
 
-    // Obstacle management
-    if (Math.random() < 0.02 && (obstacles.length === 0 || obstacles[obstacles.length-1].x < CANVAS_WIDTH - 300)) {
+    // Obstacles
+    if (obstacles.length === 0 || obstacles[obstacles.length-1].x < CANVAS_WIDTH - (300 + Math.random() * 200)) {
         spawnObstacle();
     }
 
@@ -268,25 +329,26 @@ function gameLoop(time) {
         if (checkCollision(player, obs)) {
             gameOver();
         }
-        if (obs.x + obs.width < 0) {
+        if (obs.x + obs.width < -100) {
             obstacles.splice(index, 1);
         }
     });
 
     // Draw
-    bgLayer.draw();
-    
-    // Draw Ground
-    ctx.fillStyle = '#333';
-    ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
-    
+    scene.draw();
     player.draw();
     obstacles.forEach(obs => obs.draw());
+
+    // CRT Scanline Effect (subtle)
+    ctx.fillStyle = 'rgba(18, 16, 16, 0.1)';
+    for (let i = 0; i < CANVAS_HEIGHT; i += 4) {
+        ctx.fillRect(0, i, CANVAS_WIDTH, 1);
+    }
 
     requestAnimationFrame(gameLoop);
 }
 
-// Event Listeners
+// Listeners
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
         if (gameState === 'PLAYING') {
@@ -299,9 +361,10 @@ window.addEventListener('keydown', (e) => {
 
 ui.startBtn.addEventListener('click', startGame);
 
-// Initial Load
+// Initialization
 window.onload = () => {
-    // Canvas initial state
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw initial scene
+    scene.draw();
 };
